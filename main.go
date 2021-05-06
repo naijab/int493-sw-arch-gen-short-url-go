@@ -54,8 +54,8 @@ func main() {
 
 	app.Get("/", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
-			"stack": "golang (fiber), redis",
-			"server": ServerName,
+			"stack":   "golang (fiber), redis",
+			"server":  ServerName,
 			"version": 4,
 		})
 	})
