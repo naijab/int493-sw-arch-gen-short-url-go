@@ -15,6 +15,10 @@ sudo chmod +x /usr/local/bin/docker-compose
 ## How to run
 1. copy `.env.example` to `.env` and edit variables
 2. use command `go run main.go`
+3. run dev on local uncomment this
+``` 
+// RedisContainerIP := "localhost"
+```
 
 ## Production
 1. run `make start-app` and `make start-redis`
