@@ -5,8 +5,6 @@ services:
   redis-cluster:
     image: grokzen/redis-cluster
     restart: always
-    networks:
-      - shortener_api_network
     ports:
       - '7000-7050:7000-7050'
       - '5000-5010:5000-5010'
@@ -17,24 +15,17 @@ services:
   shortener_api:
     build: .
     restart: always
-    depends_on:
-      - redis-cluster
     volumes:
       - ./:/usr/app
     ports:
       - ${PORT}:3000
-    networks:
-      - shortener_api_network
     environment:
       SERVER_NAME: ${SERVER_NAME}
       PORT: ${PORT}
       BASE_URL: ${BASE_URL}
-      REDIS_CONTAINER_IP: redis-cluster
+      ## Edit redis real ip
+      REDIS_CONTAINER_IP: 207.46.228.9
 
 volumes:
   db_data:
     driver: local
-
-networks:
-  shortener_api_network:
-    driver: bridge
