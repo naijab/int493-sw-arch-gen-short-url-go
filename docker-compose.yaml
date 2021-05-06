@@ -18,7 +18,7 @@ services:
     volumes:
       - ./:/usr/app
     ports:
-      - ${PORT}:3000
+      - 80:${PORT}
     environment:
       SERVER_NAME: ${SERVER_NAME}
       PORT: ${PORT}
