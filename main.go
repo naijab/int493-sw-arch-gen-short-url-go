@@ -6,28 +6,27 @@ import (
 	"github.com/go-redis/redis/v8"
 	"github.com/gofiber/fiber/v2"
 	"github.com/joho/godotenv"
+	"github.com/matoous/go-nanoid/v2"
 	"log"
 	"os"
-	"github.com/matoous/go-nanoid/v2"
 )
 
 type CreateShortLinkReq struct {
-	Url     string `json:"url"`
+	Url string `json:"url"`
 }
 
 type ShortLinkResp struct {
-	Link     string `json:"link"`
+	Link string `json:"link"`
 }
 
 type LinkStatResp struct {
-	Visit     int `json:"visit"`
+	Visit int64 `json:"visit"`
 }
 
-type MessageResp struct {
-	Message     int `json:"message"`
-}
+var ctx = context.Background()
 
-var ctx          = context.Background()
+const FullKey = "full"
+const CountKey = "count"
 
 func main() {
 	err := godotenv.Load()
@@ -37,7 +36,8 @@ func main() {
 
 	// Get env var
 	AppPort := os.Getenv("PORT")
-	BaseUrl      := os.Getenv("BASE_URL")
+	ServerName := os.Getenv("SERVER_NAME")
+	BaseUrl := os.Getenv("BASE_URL")
 	RedisConnect := os.Getenv("REDIS_CONNECT")
 
 	// Create new fiber app
@@ -49,9 +49,15 @@ func main() {
 		Password: "",
 		DB:       0,
 	})
-	defer rdb.Close()
-
 	log.Println("Redis Connection: ", rdb.Ping(ctx))
+
+	app.Get("/", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{
+			"stack": "golang (fiber), redis",
+			"server": ServerName,
+			"version": 4,
+		})
+	})
 
 	app.Post("/link", func(c *fiber.Ctx) error {
 		input := new(CreateShortLinkReq)
@@ -59,15 +65,25 @@ func main() {
 			return err
 		}
 
-		// TODO: Implement generate unique short link
+		fullUrl := input.Url
 
-		// Hash full url for check is in redis if exist return short url from redis
-		// If not exist generate short from hash full url
+		fullUrlInRedis, err := rdb.Get(ctx, fullUrl).Result()
+		if err != nil {
+			// If full url is in redis
+			link := fmt.Sprintf("%s/l/%s", BaseUrl, fullUrlInRedis)
+			short := ShortLinkResp{
+				Link: link,
+			}
+			return c.JSON(short)
+		}
 
-		//rdb.HMSet(ctx, )
+		// Full url not exist it will generate short url
+		id, _ := gonanoid.New()
+		rdb.HMSet(ctx, id, FullKey, fullUrl)
+		rdb.HMSet(ctx, id, CountKey, 0)
 
-		link := fmt.Sprintf("%s/l/%x", BaseUrl, bs)
-		short := ShortLinkResp {
+		link := fmt.Sprintf("%s/l/%x", BaseUrl, id)
+		short := ShortLinkResp{
 			Link: link,
 		}
 		return c.JSON(short)
@@ -75,20 +91,27 @@ func main() {
 
 	app.Get("/l/:short", func(c *fiber.Ctx) error {
 		shortParam := c.Params("short")
-		linkRaw, err := rdb.Get(ctx, shortParam).Result()
-
-		// TODO: Implement get full url and redirect from short key
-
+		link, err := rdb.HMGet(ctx, shortParam, FullKey).Result()
 		if err != nil {
 			return c.SendStatus(fiber.StatusNotFound)
 		}
-		return c.Redirect(linkRaw)
+
+		// Increment count with plus 1
+		rdb.HIncrBy(ctx, shortParam, CountKey, 1)
+
+		fullUrl := link[0].(string)
+		return c.Redirect(fullUrl)
 	})
 
 	app.Get("/l/:short/stats", func(c *fiber.Ctx) error {
-		// TODO: Implement link stats
-		visit := LinkStatResp {
-			Visit: 30,
+		shortParam := c.Params("short")
+		link, err := rdb.HMGet(ctx, shortParam, CountKey).Result()
+		if err != nil {
+			return c.SendStatus(fiber.StatusNotFound)
+		}
+		count := link[0].(int64)
+		visit := LinkStatResp{
+			Visit: count,
 		}
 		return c.JSON(visit)
 	})
