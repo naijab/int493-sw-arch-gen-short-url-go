@@ -24,7 +24,7 @@ services:
       PORT: ${PORT}
       BASE_URL: ${BASE_URL}
       ## Edit redis real ip
-      REDIS_CONTAINER_IP: 207.46.228.9
+      REDIS_CONTAINER_IP: 13.76.158.46
 
 volumes:
   db_data:
