@@ -50,6 +50,7 @@ func main() {
 		Password: "",
 		DB:       0,
 	})
+
 	log.Println("Redis Connection: ", rdb.Ping(ctx))
 
 	app.Get("/", func(c *fiber.Ctx) error {
