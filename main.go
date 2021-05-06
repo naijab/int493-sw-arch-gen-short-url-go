@@ -9,6 +9,7 @@ import (
 	"github.com/matoous/go-nanoid/v2"
 	"log"
 	"os"
+	"strconv"
 )
 
 type CreateShortLinkReq struct {
@@ -20,7 +21,7 @@ type ShortLinkResp struct {
 }
 
 type LinkStatResp struct {
-	Visit int64 `json:"visit"`
+	Visit int `json:"visit"`
 }
 
 var ctx = context.Background()
@@ -67,8 +68,8 @@ func main() {
 
 		fullUrl := input.Url
 
-		fullUrlInRedis, err := rdb.Get(ctx, fullUrl).Result()
-		if err != nil {
+		fullUrlInRedis, _ := rdb.Get(ctx, fullUrl).Result()
+		if fullUrlInRedis != "" {
 			// If full url is in redis
 			link := fmt.Sprintf("%s/l/%s", BaseUrl, fullUrlInRedis)
 			short := ShortLinkResp{
@@ -77,12 +78,15 @@ func main() {
 			return c.JSON(short)
 		}
 
-		// Full url not exist it will generate short url
-		id, _ := gonanoid.New()
+		// Full url not exist it will generate short url and save to redis
+		id, _ := gonanoid.New(6)
 		rdb.HMSet(ctx, id, FullKey, fullUrl)
 		rdb.HMSet(ctx, id, CountKey, 0)
 
-		link := fmt.Sprintf("%s/l/%x", BaseUrl, id)
+		// Save full url to redis
+		rdb.Set(ctx, fullUrl, id, 0)
+
+		link := fmt.Sprintf("%s/l/%s", BaseUrl, id)
 		short := ShortLinkResp{
 			Link: link,
 		}
@@ -91,8 +95,10 @@ func main() {
 
 	app.Get("/l/:short", func(c *fiber.Ctx) error {
 		shortParam := c.Params("short")
-		link, err := rdb.HMGet(ctx, shortParam, FullKey).Result()
-		if err != nil {
+
+		// Get full url from short url
+		link, _ := rdb.HMGet(ctx, shortParam, FullKey).Result()
+		if link == nil {
 			return c.SendStatus(fiber.StatusNotFound)
 		}
 
@@ -105,11 +111,14 @@ func main() {
 
 	app.Get("/l/:short/stats", func(c *fiber.Ctx) error {
 		shortParam := c.Params("short")
-		link, err := rdb.HMGet(ctx, shortParam, CountKey).Result()
-		if err != nil {
+
+		// Get total count from short url
+		link, _ := rdb.HMGet(ctx, shortParam, CountKey).Result()
+		if link == nil {
 			return c.SendStatus(fiber.StatusNotFound)
 		}
-		count := link[0].(int64)
+		countRaw := link[0].(string)
+		count, _ := strconv.Atoi(countRaw)
 		visit := LinkStatResp{
 			Visit: count,
 		}
