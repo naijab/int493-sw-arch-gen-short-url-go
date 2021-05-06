@@ -39,18 +39,25 @@ func main() {
 	AppPort := os.Getenv("PORT")
 	ServerName := os.Getenv("SERVER_NAME")
 	BaseUrl := os.Getenv("BASE_URL")
-	RedisConnect := os.Getenv("REDIS_CONNECT")
+	RedisContainerIP := os.Getenv("REDIS_CONTAINER_IP")
+
+	// If run dev on local
+	// RedisContainerIP := "localhost"
+
+	log.Println("RedisContainer IP: ", RedisContainerIP)
 
 	// Create new fiber app
 	app := fiber.New()
 
-	// Connect to redis
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     RedisConnect,
-		Password: "",
-		DB:       0,
-	})
+	// Connect to redis cluster
+	clusterA := fmt.Sprintf("%s:7000", RedisContainerIP)
+	clusterB := fmt.Sprintf("%s:7001", RedisContainerIP)
+	clusterC := fmt.Sprintf("%s:7002", RedisContainerIP)
 
+	clusterIps := []string{clusterA, clusterB, clusterC}
+	rdb := redis.NewClusterClient(&redis.ClusterOptions{
+		Addrs: clusterIps,
+	})
 	log.Println("Redis Connection: ", rdb.Ping(ctx))
 
 	app.Get("/", func(c *fiber.Ctx) error {
