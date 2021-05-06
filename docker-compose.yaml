@@ -1,0 +1,30 @@
+version: "3"
+
+services:
+
+  shortener_api:
+    build: .
+    restart: always
+    volumes:
+      - ./:/usr/app
+    ports:
+      - ${PORT}:80
+    environment:
+      SERVER_NAME: ${SERVER_NAME}
+      PORT=3000: ${PORT}
+      BASE_URL: ${BASE_URL}
+      REDIS_CONNECT: ${REDIS_CONNECT}
+
+  redis-cluster:
+    image: grokzen/redis-cluster
+    restart: always
+    environment:
+      IP: ${REDIS_CLUSTER_IP}
+      SENTINEL: ${REDIS_USE_SENTINEL}
+    ports:
+      - '7000-7050:7000-7050'
+      - '5000-5010:5000-5010'
+
+volumes:
+  db_data:
+    driver: local
