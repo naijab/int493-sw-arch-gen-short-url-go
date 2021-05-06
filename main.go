@@ -98,15 +98,15 @@ func main() {
 
 		// Get full url from short url
 		link, _ := rdb.HMGet(ctx, shortParam, FullKey).Result()
-		if link == nil {
-			return c.SendStatus(fiber.StatusNotFound)
+		if link != nil && link[0] != nil {
+			// Increment count with plus 1
+			rdb.HIncrBy(ctx, shortParam, CountKey, 1)
+
+			fullUrl := link[0].(string)
+			return c.Redirect(fullUrl)
 		}
 
-		// Increment count with plus 1
-		rdb.HIncrBy(ctx, shortParam, CountKey, 1)
-
-		fullUrl := link[0].(string)
-		return c.Redirect(fullUrl)
+		return c.SendStatus(fiber.StatusNotFound)
 	})
 
 	app.Get("/l/:short/stats", func(c *fiber.Ctx) error {
@@ -114,15 +114,16 @@ func main() {
 
 		// Get total count from short url
 		link, _ := rdb.HMGet(ctx, shortParam, CountKey).Result()
-		if link == nil {
-			return c.SendStatus(fiber.StatusNotFound)
+		if link != nil && link[0] != nil {
+			countRaw := link[0].(string)
+			count, _ := strconv.Atoi(countRaw)
+			visit := LinkStatResp{
+				Visit: count,
+			}
+			return c.JSON(visit)
 		}
-		countRaw := link[0].(string)
-		count, _ := strconv.Atoi(countRaw)
-		visit := LinkStatResp{
-			Visit: count,
-		}
-		return c.JSON(visit)
+
+		return c.SendStatus(fiber.StatusNotFound)
 	})
 
 	log.Fatal(app.Listen(fmt.Sprintf(":%s", AppPort)))
